@@ -1,45 +1,16 @@
 ﻿  AcceleratedRayTracer.cpp
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(180,20): warning C4101: “vn0”: 未引用的局部变量
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(180,25): warning C4101: “vn1”: 未引用的局部变量
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(180,30): warning C4101: “vn2”: 未引用的局部变量
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(259,15): warning C4244: “-=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(259,39): warning C4244: “-=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(9,30): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(9,44): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(10,18): warning C4244: “初始化”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(10,41): warning C4244: “初始化”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(11,13): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(11,27): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(98,46): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(109,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(110,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(111,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(112,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(113,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(114,83): warning C4305: “参数”: 从“double”到“T”截断
-          with
-          [
-              T=float
-          ]
-E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(126,66): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(163,20): warning C4101: “vn0”: 未引用的局部变量
+  (编译源文件“AcceleratedRayTracer.cpp”)
+  
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(163,25): warning C4101: “vn1”: 未引用的局部变量
+  (编译源文件“AcceleratedRayTracer.cpp”)
+  
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.h(163,30): warning C4101: “vn2”: 未引用的局部变量
+  (编译源文件“AcceleratedRayTracer.cpp”)
+  
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(58,55): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(135,66): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(136,58): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(62,44): warning C4101: “BVHSSBO”: 未引用的局部变量
+E:\Accelerated Ray Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(62,38): warning C4101: “SSBO”: 未引用的局部变量
   Accelerated Ray Tracer.vcxproj -> E:\Accelerated Ray Tracer\x64\Debug\Accelerated Ray Tracer.exe

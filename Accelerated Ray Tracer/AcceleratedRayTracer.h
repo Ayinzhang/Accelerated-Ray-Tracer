@@ -1,10 +1,12 @@
 #pragma once
 #define GLM_ENABLE_EXPERIMENTAL
+#include <queue>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <GL/glew.h>
 #include <GL/glut.h>
 #include <glm/glm.hpp>
@@ -28,7 +30,7 @@ uint screenIndices[] = {
 	2, 3, 0
 };
 
-vec3 MinVec3(const vec3& a, const vec3& b) 
+vec3 MinVec3(const vec3& a, const vec3& b)
 {
 	return vec3(std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z));
 }
@@ -38,7 +40,7 @@ vec3 MaxVec3(const vec3& a, const vec3& b)
 	return vec3(std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z));
 }
 
-class Shader
+struct Shader
 {
 public:
 	string vertexString, fragmentString;
@@ -93,77 +95,58 @@ struct Ray
 	Ray(vec3 o, vec3 d) : origin(o), direction(normalize(d)) {}
 };
 
-struct Triangle 
+struct Triangle
 {
-	vec3 v0, v1, v2, n;
+	//vec3 v0, v1, v2, n;
+	vec3 v0; float pad0;
+	vec3 v1; float pad1;
+	vec3 v2; float pad2;
+	vec3 n; float pad3;
 
 	Triangle(vec3 _v0, vec3 _v1, vec3 _v2): v0(_v0), v1(_v1), v2(_v2), n(normalize(cross(_v1 - _v0, _v2 - _v0))) {}
 
 	Triangle(vec3 _v0, vec3 _v1, vec3 _v2, vec3 _n) : v0(_v0), v1(_v1), v2(_v2), n(normalize(_n)) {}
 
-	float Intersect(Ray ray)
+	void GetAABB(vec3& minCorner, vec3& maxCorner) 
 	{
-		if (dot(ray.direction, n) >= 0) return FLT_MAX;
-
-		float t = dot(ray.origin - v0, n);
-		if (t < 0) return FLT_MAX;
-
-		vec3 hitPoint = ray.origin + t * ray.direction;
-
-		vec3 edge0 = v1 - v0, edge1 = v2 - v1, edge2 = v0 - v2,
-			 c0 = hitPoint - v0, c1 = hitPoint - v1, c2 = hitPoint - v2;
-
-		if (dot(n, cross(edge0, c0)) < 0 || dot(n, cross(edge1, c1)) < 0 
-			|| dot(n, cross(edge2, c2)) < 0) return FLT_MAX;
-
-		return t;
+		minCorner = min(v0, min(v1, v2));
+		maxCorner = max(v0, max(v1, v2));
 	}
 };
 
-class Model 
+struct AABB 
 {
-public:
-	vector<Triangle> triangles;
-	class AABB 
+	vec3 min, max;
+
+	AABB() : min(vec3(FLT_MAX)), max(vec3(-FLT_MAX)) {}
+	AABB(vec3 a, vec3 b) : min(a), max(b) {}
+
+	// 扩展包围盒
+	void Expand(const AABB& other) 
 	{
-	public:
-		vec3 min, max;
+		min = glm::min(min, other.min);
+		max = glm::max(max, other.max);
+	}
+};
 
-		AABB() : min(vec3(FLT_MAX)), max(vec3(-FLT_MAX)) {}
+struct BVHNode 
+{
+	AABB box;
+	BVHNode *left, *right; 
+	int n, index;     
 
-		void Update(vec3 vertex) 
-		{
-			min = MinVec3(min, vertex);
-			max = MaxVec3(max, vertex);
-		}
+	BVHNode() : left(nullptr), right(nullptr), n(0), index(0) {}
+};
 
-		bool Intersect(Ray ray) 
-		{
-			float tmin = (min.x - ray.origin.x) / ray.direction.x;
-			float tmax = (max.x - ray.origin.x) / ray.direction.x;
+struct FlattenedBVHNode
+{
+	int left, count, pad0, pad1;
+	vec3 aabbMin; float pad2; vec3 aabbMax; float pad3;
+};
 
-			if (tmin > tmax) swap(tmin, tmax);
-
-			float tymin = (min.y - ray.origin.y) / ray.direction.y;
-			float tymax = (max.y - ray.origin.y) / ray.direction.y;
-
-			if (tymin > tymax) swap(tymin, tymax);
-
-			if ((tmin > tymax) || (tymin > tmax)) return false;
-
-			if (tymin > tmin) tmin = tymin;
-			if (tymax < tmax) tmax = tymax;
-
-			float tzmin = (min.z - ray.origin.z) / ray.direction.z;
-			float tzmax = (max.z - ray.origin.z) / ray.direction.z;
-
-			if (tzmin > tzmax) swap(tzmin, tzmax);
-
-			if ((tmin > tzmax) || (tzmin > tmax)) return false;
-
-			return true;
-		}
-	};
+struct Model 
+{
+	vector<Triangle> triangles;
 
 	bool LoadModel(const string& filepath) 
 	{
@@ -230,9 +213,80 @@ public:
 		}
 		glEnd();
 	}
+
+	BVHNode* BuildBVH(int start, int end) 
+	{
+		BVHNode* node = new BVHNode(); AABB box;
+		for (int i = start; i < end; i++) 
+		{
+			vec3 minCorner, maxCorner;
+			triangles[i].GetAABB(minCorner, maxCorner);
+			box.Expand(AABB(minCorner, maxCorner));
+		}
+		node->box = box;
+
+		int count = end - start;
+		if (count <= 4) 
+		{ 
+			node->n = count;
+			node->index = start;
+			return node;
+		}
+
+		vec3 extent = box.max - box.min;
+		int axis = extent.x > extent.y ? (extent.x > extent.z ? 0 : 2) : (extent.y > extent.z ? 1 : 2);
+
+		sort(triangles.begin() + start, triangles.begin() + end,
+			[axis](const Triangle& a, const Triangle& b) {
+				return (a.v0[axis] + a.v1[axis] + a.v2[axis]) / 3 <
+					(b.v0[axis] + b.v1[axis] + b.v2[axis]) / 3;
+			});
+
+		int mid = start + count / 2;
+		node->left = BuildBVH(start, mid);
+		node->right = BuildBVH(mid, end);
+		return node;
+	}
 };
 
-class Camera
+void SerializeBVH(vector<FlattenedBVHNode>& flattenedBVH, BVHNode* root) {
+	if (!root) return;
+
+	queue<pair<BVHNode*, int>> q; // 队列，保存节点和对应的索引
+	q.push({ root, 0 });
+
+	while (!q.empty()) 
+	{
+		auto node = q.front().first;
+		auto index = q.front().second;
+		q.pop();
+
+		// 序列化当前节点
+		FlattenedBVHNode flatNode;
+		flatNode.aabbMin = node->box.min;
+		flatNode.aabbMax = node->box.max;
+
+		if (node->n > 0) 
+		{ // 叶节点
+			flatNode.left = node->index; // 存储三角形起始索引
+			flatNode.count = node->n;        // 存储三角形数量
+		}
+		else 
+		{ // 内部节点
+			flatNode.left = 2 * index + 1; // 左子节点索引
+			flatNode.count = 0;                // 内部节点标记为 0
+
+			// 添加左右子节点到队列
+			if (node->left) q.push({ node->left, 2 * index + 1 });
+			if (node->right) q.push({ node->right, 2 * index + 2 });
+		}
+
+		flattenedBVH.push_back(flatNode); // 保存当前节点
+	}
+}
+
+
+struct Camera
 {
 public:
 	vec3 position, forward, right, up, worldUp; float yaw, pitch;

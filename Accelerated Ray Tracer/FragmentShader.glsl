@@ -1,20 +1,21 @@
-﻿#version 330 core
+﻿#version 430 core
 
 in vec2 screenCoord;
-
 out vec4 FragColor;
 
-struct Ray { vec3 origin, direction;};
-
-struct Camera { vec3 position, forward, right, up;};
-
-struct Triangle { vec3 v0, v1, v2, n;};
+struct Ray { vec3 origin, direction; };
+struct Camera { vec3 position, forward, right, up; };
+struct Triangle { vec3 v0, v1, v2, n; };
+struct FlattenedBVHNode { int left, count, pad0, pad1; vec3 aabbMin, aabbMax; };
 
 uniform Camera camera;
-uniform int triangleCount;
-layout(std140) uniform TriangleBlock { Triangle triangles[1000];};
+uniform int triangleCount, bvhCount;
+layout(std140, binding = 0) uniform TriangleBlock{ Triangle triangles[1024]; };
+layout(std140, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[1024]; };
+//layout(std430, binding = 0) uniform TriangleBlock{ Triangle triangles[]; };
+//layout(std430, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[];};
 
-Ray CreateRay(vec3 o, vec3 d) 
+Ray CreateRay(vec3 o, vec3 d)
 {
     Ray ray;
     ray.origin = o;
@@ -22,7 +23,7 @@ Ray CreateRay(vec3 o, vec3 d)
     return ray;
 }
 
-bool RayTriangleIntersect(Ray ray, Triangle tri, out float t, out vec3 hitPoint) 
+bool RayTriangleIntersect(Ray ray, Triangle tri, out float t, out vec3 hitPoint)
 {
     vec3 edge1 = tri.v1 - tri.v0, edge2 = tri.v2 - tri.v0, h = cross(ray.direction, edge2);
     float a = dot(edge1, h);
@@ -30,7 +31,7 @@ bool RayTriangleIntersect(Ray ray, Triangle tri, out float t, out vec3 hitPoint)
     if (abs(a) < 1e-6) return false;
 
     float f = 1.0 / a;
-    vec3 s = ray.origin - tri.v0; 
+    vec3 s = ray.origin - tri.v0;
     float u = f * dot(s, h);
     if (u < 0.0 || u > 1.0) return false;
 
@@ -39,7 +40,7 @@ bool RayTriangleIntersect(Ray ray, Triangle tri, out float t, out vec3 hitPoint)
     if (v < 0.0 || u + v > 1.0) return false;
 
     t = f * dot(edge2, q);
-    if (t > 1e-6) 
+    if (t > 1e-6)
     {
         hitPoint = ray.origin + t * ray.direction;
         return true;
@@ -48,17 +49,17 @@ bool RayTriangleIntersect(Ray ray, Triangle tri, out float t, out vec3 hitPoint)
     return false;
 }
 
-vec3 RayTrace(Ray ray) 
+vec3 RayTrace(Ray ray)
 {
     float closestT = 1e20, t = (ray.direction.y + 1.0) * 0.5;
     vec3 color = (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 
-    for (int i = 0; i < triangleCount; i++) 
+    for (int i = 0; i < triangleCount; i++)
     {
-        float t; vec3 hitPoint; 
-        if (RayTriangleIntersect(ray, triangles[i], t, hitPoint)) 
+        float t; vec3 hitPoint;
+        if (RayTriangleIntersect(ray, triangles[i], t, hitPoint))
         {
-            if (t < closestT) 
+            if (t < closestT)
             {
                 closestT = t;
                 vec3 lightPos = vec3(10.0, 10.0, 10.0);
@@ -68,15 +69,70 @@ vec3 RayTrace(Ray ray)
             }
         }
     }
+
+    return color;
+}
+
+bool RayAABBIntersect(Ray ray, vec3 aabbMin, vec3 aabbMax)
+{
+    vec3 invDir = 1.0 / ray.direction;
+    vec3 t0s = (aabbMin - ray.origin) * invDir;
+    vec3 t1s = (aabbMax - ray.origin) * invDir;
+    
+    vec3 tMinVec = min(t0s, t1s);
+    vec3 tMaxVec = max(t0s, t1s);
+    
+    float tMin = max(max(tMinVec.x, tMinVec.y), tMinVec.z),
+    tMax = min(min(tMaxVec.x, tMaxVec.y), tMaxVec.z);
+    
+    return tMax > max(tMin, 0.0);
+}
+
+vec3 RayTraceBVH(Ray ray) 
+{
+    float t = (ray.direction.y + 1.0) * 0.5, closestT = 1e20;
+    vec3 color = (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+    
+    int queue[1000], l = 0, r = 1; queue[0] = 0; 
+    while (l < r)
+    {
+        int cnt = queue[l++];
+        if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) continue;
+        if (bvhNodes[cnt].count == 0)
+        {
+            if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 1].aabbMin, bvhNodes[2 * cnt + 1].aabbMax)) 
+                queue[r++] = 2 * cnt + 1;
+            if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 2].aabbMin, bvhNodes[2 * cnt + 2].aabbMax)) 
+                queue[r++] = 2 * cnt + 2;
+        }
+        else
+        {
+            for (int i = bvhNodes[cnt].left; i < bvhNodes[cnt].left + bvhNodes[cnt].count; i++)
+            {
+                vec3 hitPoint;
+                if (RayTriangleIntersect(ray, triangles[i], t, hitPoint))
+                {
+                    if (t >= closestT) continue;
+                    vec3 lightPos = vec3(10.0, 10.0, 10.0);
+                    vec3 lightDir = normalize(lightPos - hitPoint);
+                    float diff = max(dot(triangles[i].n, lightDir), 0.0);
+                    color = vec3(0.8) * diff; closestT = t;
+                }
+            }
+        }
+    }
     
     return color;
 }
 
-void main() 
+void main()
 {
     float u = screenCoord.x, v = screenCoord.y;
 
     Ray ray = CreateRay(camera.position, camera.forward + 4 * (u - 0.5) * camera.right + 3 * (v - 0.5) * camera.up);
-
-    FragColor = vec4(RayTrace(ray), 1.0); 
+    
+    //FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    //FragColor = vec4(vec3(bvhNodes[0].left), 1.0);
+    //FragColor = vec4(RayTrace(ray), 1.0);
+    FragColor = vec4(RayTraceBVH(ray), 1.0);
 }
