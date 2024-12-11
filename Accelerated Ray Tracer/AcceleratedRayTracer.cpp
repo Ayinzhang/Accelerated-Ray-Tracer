@@ -59,7 +59,7 @@ int main()
     int nodeIndex = 0; SerializeBVH(flattenedBVH, root);
 
     // 设置 VAO/VBO/EBO
-    uint VAO, VBO, EBO, UBO, BVHUBO, SSBO, BVHSSBO;
+    uint VAO, VBO, EBO, UBO, BVHUBO, SSBO, BVHSSBO, CollisionSSBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -88,13 +88,19 @@ int main()
 
     //glGenBuffers(1, &SSBO);
     //glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
-    //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Triangle) * model.triangles.size(), NULL, GL_STATIC_DRAW);
+    //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Triangle) * model.triangles.size(), &model.triangles[0], GL_STATIC_DRAW);
     //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
-
+    //
     //glGenBuffers(1, &BVHSSBO);
     //glBindBuffer(GL_SHADER_STORAGE_BUFFER, BVHSSBO);
     //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlattenedBVHNode) * flattenedBVH.size(), &flattenedBVH[0], GL_STATIC_DRAW);
     //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, BVHSSBO);
+
+    int pixelCount = width * height;
+    glGenBuffers(1, &CollisionSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, CollisionSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * pixelCount, NULL, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, CollisionSSBO);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -121,6 +127,22 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.position += vec3(0.05) * normalize(camera.right);
         if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camera.position += vec3(0.05) * normalize(camera.up);
         if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camera.position -= vec3(0.05) * normalize(camera.up);
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        {
+            vector<int> aabbCollisions(pixelCount);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, CollisionSSBO);
+            int* ptr = (int*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+            memcpy(aabbCollisions.data(), ptr, sizeof(int)* pixelCount);
+            glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+            // 打印统计信息
+            int num = 0, minNum = 1e9, maxNum = -1e9;
+            for (int count : aabbCollisions) 
+            {
+				num += count; minNum = std::min(minNum, count); maxNum = std::max(maxNum, count);
+            }
+            printf("Avg: %d, Min: %d, Max: %d\n", num / pixelCount, minNum, maxNum);
+        }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

@@ -1,4 +1,5 @@
 ﻿#version 430 core
+#extension GL_NV_uniform_buffer_std430_layout: enable
 
 in vec2 screenCoord;
 out vec4 FragColor;
@@ -6,7 +7,7 @@ out vec4 FragColor;
 struct Ray { vec3 origin, direction; };
 struct Camera { vec3 position, forward, right, up; };
 struct Triangle { vec3 v0, v1, v2, n; };
-struct FlattenedBVHNode { int left, count, pad0, pad1; vec3 aabbMin, aabbMax; };
+struct FlattenedBVHNode { int left, count; vec3 aabbMin, aabbMax; };
 
 uniform Camera camera;
 uniform int triangleCount, bvhCount;
@@ -14,6 +15,7 @@ layout(std140, binding = 0) uniform TriangleBlock{ Triangle triangles[1024]; };
 layout(std140, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[1024]; };
 //layout(std430, binding = 0) uniform TriangleBlock{ Triangle triangles[]; };
 //layout(std430, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[];};
+layout(std430, binding = 2) buffer AABBIntersectionBuffer { int aabbCollisionCounts[]; };
 
 Ray CreateRay(vec3 o, vec3 d)
 {
@@ -88,24 +90,34 @@ bool RayAABBIntersect(Ray ray, vec3 aabbMin, vec3 aabbMax)
     return tMax > max(tMin, 0.0);
 }
 
-vec3 RayTraceBVH(Ray ray) 
+vec3 RayTraceBVH(Ray ray)
 {
     float t = (ray.direction.y + 1.0) * 0.5, closestT = 1e20;
     vec3 color = (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
-    
-    int queue[1000], l = 0, r = 1; queue[0] = 0; 
+
+    int queue[1000], l = 0, r = 1; 
+    queue[0] = 0; // 初始从根节点开始遍历
+
+    int rayID = int(gl_FragCoord.y) * 800 + int(gl_FragCoord.x); // 计算光线的唯一 ID
+    aabbCollisionCounts[rayID] = 0; // 初始化碰撞计数
+
     while (l < r)
     {
         int cnt = queue[l++];
-        if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) continue;
-        if (bvhNodes[cnt].count == 0)
+        if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) 
+            continue;
+
+        // 包围盒相交，计数器加一
+        aabbCollisionCounts[rayID]++;
+
+        if (bvhNodes[cnt].count == 0) // 非叶子节点
         {
             if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 1].aabbMin, bvhNodes[2 * cnt + 1].aabbMax)) 
                 queue[r++] = 2 * cnt + 1;
             if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 2].aabbMin, bvhNodes[2 * cnt + 2].aabbMax)) 
                 queue[r++] = 2 * cnt + 2;
         }
-        else
+        else // 叶子节点
         {
             for (int i = bvhNodes[cnt].left; i < bvhNodes[cnt].left + bvhNodes[cnt].count; i++)
             {
@@ -116,14 +128,16 @@ vec3 RayTraceBVH(Ray ray)
                     vec3 lightPos = vec3(10.0, 10.0, 10.0);
                     vec3 lightDir = normalize(lightPos - hitPoint);
                     float diff = max(dot(triangles[i].n, lightDir), 0.0);
-                    color = vec3(0.8) * diff; closestT = t;
+                    color = vec3(0.8) * diff; 
+                    closestT = t;
                 }
             }
         }
     }
-    
+
     return color;
 }
+
 
 void main()
 {

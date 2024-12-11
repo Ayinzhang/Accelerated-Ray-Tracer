@@ -97,7 +97,6 @@ struct Ray
 
 struct Triangle
 {
-	//vec3 v0, v1, v2, n;
 	vec3 v0; float pad0;
 	vec3 v1; float pad1;
 	vec3 v2; float pad2;
