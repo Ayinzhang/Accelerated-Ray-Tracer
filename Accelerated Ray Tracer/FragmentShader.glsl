@@ -7,7 +7,7 @@ out vec4 FragColor;
 struct Ray { vec3 origin, direction; };
 struct Camera { vec3 position, forward, right, up; };
 struct Triangle { vec3 v0, v1, v2, n; };
-struct FlattenedBVHNode { int left, count; vec3 aabbMin, aabbMax; };
+struct FlattenedBVHNode { int left, right, count; vec3 aabbMin, aabbMax; };
 
 uniform Camera camera;
 uniform int triangleCount, bvhCount;
@@ -104,22 +104,21 @@ vec3 RayTraceBVH(Ray ray)
     while (l < r)
     {
         int cnt = queue[l++];
-        if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) 
-            continue;
+        if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) continue;
 
         // 包围盒相交，计数器加一
         aabbCollisionCounts[rayID]++;
 
         if (bvhNodes[cnt].count == 0) // 非叶子节点
         {
-            if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 1].aabbMin, bvhNodes[2 * cnt + 1].aabbMax)) 
-                queue[r++] = 2 * cnt + 1;
-            if (RayAABBIntersect(ray, bvhNodes[2 * cnt + 2].aabbMin, bvhNodes[2 * cnt + 2].aabbMax)) 
-                queue[r++] = 2 * cnt + 2;
+            if (RayAABBIntersect(ray, bvhNodes[bvhNodes[cnt].left].aabbMin, bvhNodes[bvhNodes[cnt].left].aabbMax)) 
+                queue[r++] = bvhNodes[cnt].left;
+            if (RayAABBIntersect(ray, bvhNodes[bvhNodes[cnt].right].aabbMin, bvhNodes[bvhNodes[cnt].right].aabbMax)) 
+                queue[r++] = bvhNodes[cnt].right;
         }
         else // 叶子节点
         {
-            for (int i = bvhNodes[cnt].left; i < bvhNodes[cnt].left + bvhNodes[cnt].count; i++)
+            for (int i = bvhNodes[cnt].left; i < bvhNodes[cnt].right; i++)
             {
                 vec3 hitPoint;
                 if (RayTriangleIntersect(ray, triangles[i], t, hitPoint))

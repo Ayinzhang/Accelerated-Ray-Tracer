@@ -95,6 +95,33 @@ struct Ray
 	Ray(vec3 o, vec3 d) : origin(o), direction(normalize(d)) {}
 };
 
+struct AABB
+{
+	vec3 min, max;
+
+	AABB() : min(vec3(FLT_MAX)), max(vec3(-FLT_MAX)) {}
+	AABB(vec3 a, vec3 b) : min(a), max(b) {}
+
+	// 扩展包围盒
+	void Expand(const AABB& other)
+	{
+		min = glm::min(min, other.min);
+		max = glm::max(max, other.max);
+	}
+
+	void Expand(const vec3& point)
+	{
+		min = glm::min(min, point);
+		max = glm::max(max, point);
+	}
+
+	float SurfaceArea()
+	{
+		vec3 extent = max - min;
+		return 2.0f * (extent.x * extent.y + extent.x * extent.z + extent.y * extent.z);
+	}
+};
+
 struct Triangle
 {
 	vec3 v0; float pad0;
@@ -111,20 +138,14 @@ struct Triangle
 		minCorner = min(v0, min(v1, v2));
 		maxCorner = max(v0, max(v1, v2));
 	}
-};
 
-struct AABB 
-{
-	vec3 min, max;
-
-	AABB() : min(vec3(FLT_MAX)), max(vec3(-FLT_MAX)) {}
-	AABB(vec3 a, vec3 b) : min(a), max(b) {}
-
-	// 扩展包围盒
-	void Expand(const AABB& other) 
+	AABB GetAABB()
 	{
-		min = glm::min(min, other.min);
-		max = glm::max(max, other.max);
+		AABB box;
+		box.Expand(v0);
+		box.Expand(v1);
+		box.Expand(v2);
+		return box;
 	}
 };
 
@@ -139,8 +160,8 @@ struct BVHNode
 
 struct FlattenedBVHNode
 {
-	int left, count, pad0, pad1;
-	vec3 aabbMin; float pad2; vec3 aabbMax; float pad3;
+	int left, right, count, pad0;
+	vec3 aabbMin; float pad1; vec3 aabbMax; float pad2;
 };
 
 struct Model 
@@ -246,43 +267,164 @@ struct Model
 		node->right = BuildBVH(mid, end);
 		return node;
 	}
-};
 
-void SerializeBVH(vector<FlattenedBVHNode>& flattenedBVH, BVHNode* root) {
-	if (!root) return;
-
-	queue<pair<BVHNode*, int>> q; // 队列，保存节点和对应的索引
-	q.push({ root, 0 });
-
-	while (!q.empty()) 
+	BVHNode* BuildBVHSAH(int start, int end)
 	{
-		auto node = q.front().first;
-		auto index = q.front().second;
-		q.pop();
+		BVHNode* node = new BVHNode();
+		AABB box;
 
-		// 序列化当前节点
-		FlattenedBVHNode flatNode;
-		flatNode.aabbMin = node->box.min;
-		flatNode.aabbMax = node->box.max;
-
-		if (node->n > 0) 
-		{ // 叶节点
-			flatNode.left = node->index; // 存储三角形起始索引
-			flatNode.count = node->n;        // 存储三角形数量
+		for (int i = start; i < end; i++)
+		{
+			vec3 minCorner, maxCorner;
+			triangles[i].GetAABB(minCorner, maxCorner);
+			box.Expand(AABB(minCorner, maxCorner));
 		}
-		else 
-		{ // 内部节点
-			flatNode.left = 2 * index + 1; // 左子节点索引
-			flatNode.count = 0;                // 内部节点标记为 0
+		node->box = box;
 
-			// 添加左右子节点到队列
-			if (node->left) q.push({ node->left, 2 * index + 1 });
-			if (node->right) q.push({ node->right, 2 * index + 2 });
+		int count = end - start;
+		if (count <= 4) 
+		{
+			node->n = count;
+			node->index = start;
+			return node;
 		}
 
-		flattenedBVH.push_back(flatNode); // 保存当前节点
+		float bestCost = FLT_MAX;
+		int bestAxis = -1, bestSplit = -1;
+
+		for (int axis = 0; axis < 3; axis++)
+		{
+			sort(triangles.begin() + start, triangles.begin() + end,
+				[axis](const Triangle& a, const Triangle& b) {
+					return (a.v0[axis] + a.v1[axis] + a.v2[axis]) / 3 <
+						(b.v0[axis] + b.v1[axis] + b.v2[axis]) / 3;
+				});
+
+			vector<AABB> prefixAABB(count), suffixAABB(count);
+			prefixAABB[0] = triangles[start].GetAABB();
+			for (int i = 1; i < count; i++)
+			{
+				prefixAABB[i] = prefixAABB[i - 1];
+				prefixAABB[i].Expand(triangles[start + i].GetAABB());
+			}
+
+			suffixAABB[count - 1] = triangles[end - 1].GetAABB();
+			for (int i = count - 2; i >= 0; i--)
+			{
+				suffixAABB[i] = suffixAABB[i + 1];
+				suffixAABB[i].Expand(triangles[start + i].GetAABB());
+			}
+
+			for (int i = 1; i < count; i++)
+			{
+				float leftArea = prefixAABB[i - 1].SurfaceArea();
+				float rightArea = suffixAABB[i].SurfaceArea();
+				float cost = leftArea * i + rightArea * (count - i);
+
+				if (cost < bestCost)
+				{
+					bestCost = cost;
+					bestAxis = axis;
+					bestSplit = i;
+				}
+			}
+		}
+
+		sort(triangles.begin() + start, triangles.begin() + end,
+			[bestAxis](const Triangle& a, const Triangle& b) {
+				return (a.v0[bestAxis] + a.v1[bestAxis] + a.v2[bestAxis]) / 3 <
+					(b.v0[bestAxis] + b.v1[bestAxis] + b.v2[bestAxis]) / 3;
+			});
+
+		int mid = start + bestSplit;
+		node->left = BuildBVHSAH(start, mid);
+		node->right = BuildBVHSAH(mid, end);
+
+		return node;
 	}
-}
+
+	void SerializeBVH(vector<FlattenedBVHNode>& flattenedBVH, BVHNode* root) 
+	{
+		if (!root) return;
+
+		queue<pair<BVHNode*, int>> q; // 队列，保存节点和对应的索引
+		q.push({ root, 0 });
+
+		while (!q.empty())
+		{
+			BVHNode* node = q.front().first;
+			int index = q.front().second;
+			q.pop();
+
+			// 序列化当前节点
+			FlattenedBVHNode flatNode;
+			flatNode.aabbMin = node->box.min;
+			flatNode.aabbMax = node->box.max;
+
+			if (node->n > 0)
+			{ 
+				flatNode.left = node->index; 
+				flatNode.right = node->index + node->n;
+				flatNode.count = node->n;  
+			}
+			else
+			{ 
+				flatNode.left = 2 * index + 1;
+				flatNode.right = 2 * index + 2;
+				flatNode.count = 0;
+
+				// 添加左右子节点到队列
+				if (node->left) q.push({ node->left, 2 * index + 1 });
+				if (node->right) q.push({ node->right, 2 * index + 2 });
+			}
+
+			flattenedBVH.push_back(flatNode); // 保存当前节点
+		}
+	}
+
+	void SerializeBVHSAH(vector<FlattenedBVHNode>& flattenedBVH, BVHNode* root) 
+	{
+		if (!root) return;
+
+		queue<pair<BVHNode*, int>> q;
+		q.push({ root, -1});
+
+		while (!q.empty())
+		{
+			BVHNode* node = q.front().first;
+			int index = q.front().second;
+			if (index != -1)
+			{
+				int father = index / 10; bool isLeft = index % 10 == 0;
+				if (isLeft) flattenedBVH[father].left = flattenedBVH.size();
+				else flattenedBVH[father].right = flattenedBVH.size();
+			}
+			q.pop();
+
+			// 序列化当前节点
+			FlattenedBVHNode flatNode;
+			flatNode.aabbMin = node->box.min;
+			flatNode.aabbMax = node->box.max;
+
+			if (node->n > 0)
+			{
+				flatNode.left = node->index;
+				flatNode.right = node->index + node->n;
+				flatNode.count = node->n;
+			}
+			else
+			{
+				flatNode.count = 0;
+
+				if (node->left) q.push({ node->left, 10 * flattenedBVH.size()});
+				if (node->right) q.push({ node->right, 10 * flattenedBVH.size() + 1});
+			}
+
+			flattenedBVH.push_back(flatNode); 
+		}
+	}
+
+};
 
 
 struct Camera

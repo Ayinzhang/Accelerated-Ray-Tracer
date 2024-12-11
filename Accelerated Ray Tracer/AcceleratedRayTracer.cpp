@@ -55,8 +55,8 @@ int main()
         cerr << "Failed to load model" << endl;
         return -1;
     }
-    auto root = model.BuildBVH(0, model.triangles.size());
-    int nodeIndex = 0; SerializeBVH(flattenedBVH, root);
+    auto root = model.BuildBVHSAH(0, model.triangles.size());
+    int nodeIndex = 0; model.SerializeBVHSAH(flattenedBVH, root);
 
     // 设置 VAO/VBO/EBO
     uint VAO, VBO, EBO, UBO, BVHUBO, SSBO, BVHSSBO, CollisionSSBO;
