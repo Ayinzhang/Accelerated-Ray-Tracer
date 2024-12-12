@@ -7,6 +7,7 @@ out vec4 FragColor;
 struct Ray { vec3 origin, direction; };
 struct Camera { vec3 position, forward, right, up; };
 struct Triangle { vec3 v0, v1, v2, n; };
+struct FlattenedKDNode { int left, right, count, tri, tri1, tri2, tri3; vec3 aabbMin, aabbMax; };
 struct FlattenedBVHNode { int left, right, count; vec3 aabbMin, aabbMax; };
 
 uniform Camera camera;
@@ -96,27 +97,26 @@ vec3 RayTraceBVH(Ray ray)
     vec3 color = (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
 
     int queue[1000], l = 0, r = 1; 
-    queue[0] = 0; // 初始从根节点开始遍历
+    queue[0] = 0; 
 
-    int rayID = int(gl_FragCoord.y) * 800 + int(gl_FragCoord.x); // 计算光线的唯一 ID
-    aabbCollisionCounts[rayID] = 0; // 初始化碰撞计数
+    int rayID = int(gl_FragCoord.y) * 800 + int(gl_FragCoord.x); 
+    aabbCollisionCounts[rayID] = 0; 
 
     while (l < r)
     {
         int cnt = queue[l++];
         if (!RayAABBIntersect(ray, bvhNodes[cnt].aabbMin, bvhNodes[cnt].aabbMax)) continue;
 
-        // 包围盒相交，计数器加一
         aabbCollisionCounts[rayID]++;
 
-        if (bvhNodes[cnt].count == 0) // 非叶子节点
+        if (bvhNodes[cnt].count == 0)
         {
             if (RayAABBIntersect(ray, bvhNodes[bvhNodes[cnt].left].aabbMin, bvhNodes[bvhNodes[cnt].left].aabbMax)) 
                 queue[r++] = bvhNodes[cnt].left;
             if (RayAABBIntersect(ray, bvhNodes[bvhNodes[cnt].right].aabbMin, bvhNodes[bvhNodes[cnt].right].aabbMax)) 
                 queue[r++] = bvhNodes[cnt].right;
         }
-        else // 叶子节点
+        else
         {
             for (int i = bvhNodes[cnt].left; i < bvhNodes[cnt].right; i++)
             {
@@ -136,7 +136,6 @@ vec3 RayTraceBVH(Ray ray)
 
     return color;
 }
-
 
 void main()
 {

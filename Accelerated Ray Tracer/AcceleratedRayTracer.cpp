@@ -1,8 +1,9 @@
 ﻿#include "AcceleratedRayTracer.h"
 
-const int width = 800, height = 600; vector<FlattenedBVHNode> flattenedBVH;
-int frameCnt; bool f; float lastTime, currentTime, lastx, lasty;
-Camera camera(vec3(0.0f, 0.0f, 3.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
+const int width = 800, height = 600; 
+int cnt, frameCnt; bool f; float lastTime, currentTime, lastx, lasty;
+vector<FlattenedBVHNode> flattenedBVH;
+Camera camera(vec3(0.0f, 0.35f, 0.7f), vec3(0.0f, 0.35f, 0.0f), vec3(0.0f, 1.0f, 0.0f));
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
@@ -14,7 +15,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
 int main() 
 {
-    // 初始化 GLFW
     if (!glfwInit()) 
     {
         std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -42,24 +42,21 @@ int main()
         return -1;
     }
 
-    // 设置视口
     glViewport(0, 0, width, height);
 
-    // 加载 Shader
     Shader shader("VertexShader.glsl", "FragmentShader.glsl");
 
-    // 加载模型
     Model model;
     if (!model.LoadModel("Bunny_Low.obj")) 
     {
         cerr << "Failed to load model" << endl;
         return -1;
     }
-    auto root = model.BuildBVHSAH(0, model.triangles.size());
-    int nodeIndex = 0; model.SerializeBVHSAH(flattenedBVH, root);
 
-    // 设置 VAO/VBO/EBO
-    uint VAO, VBO, EBO, UBO, BVHUBO, SSBO, BVHSSBO, CollisionSSBO;
+    auto rootBVH = model.BuildBVH(0, model.triangles.size());
+    model.SerializeBVH(flattenedBVH, rootBVH);
+
+    uint VAO, VBO, EBO, UBO, BVHUBO, KDUBO, SSBO, BVHSSBO, CollisionSSBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -77,7 +74,7 @@ int main()
     uint triIndex = glGetUniformBlockIndex(shader.ID, "TriangleBlock");
     glUniformBlockBinding(shader.ID, triIndex, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBO);
-    
+
     glGenBuffers(1, &BVHUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, BVHUBO);
     glBufferData(GL_UNIFORM_BUFFER, sizeof(FlattenedBVHNode) * 1024, NULL, GL_STATIC_DRAW);
@@ -110,7 +107,7 @@ int main()
 
     while (!glfwWindowShouldClose(window)) 
     {
-        frameCnt++; currentTime = glfwGetTime();
+        cnt++; frameCnt++; currentTime = glfwGetTime();
         if (currentTime - lastTime >= 1.0) 
         { 
             double fps = frameCnt / (currentTime - lastTime);
@@ -127,29 +124,50 @@ int main()
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.position += vec3(0.05) * normalize(camera.right);
         if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camera.position += vec3(0.05) * normalize(camera.up);
         if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camera.position -= vec3(0.05) * normalize(camera.up);
-        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS && cnt > 100)
         {
-            vector<int> aabbCollisions(pixelCount);
+            cnt = 0; vector<int> aabbCollisions(pixelCount);
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, CollisionSSBO);
             int* ptr = (int*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
             memcpy(aabbCollisions.data(), ptr, sizeof(int)* pixelCount);
             glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
-            // 打印统计信息
             int num = 0, minNum = 1e9, maxNum = -1e9;
             for (int count : aabbCollisions) 
             {
 				num += count; minNum = std::min(minNum, count); maxNum = std::max(maxNum, count);
             }
             printf("Avg: %d, Min: %d, Max: %d\n", num / pixelCount, minNum, maxNum);
+
+            vector<vec3> imageData(pixelCount);
+            for (int i = 0; i < pixelCount; ++i)
+            {
+                int count = aabbCollisions[i];
+                float normalized = float(count - minNum) / float(maxNum - minNum);  
+                vec3 color = vec3(normalized, 1.0f - normalized, 0.0f); 
+                imageData[i] = color;
+            }
+
+            SaveImage("CollisionInfo.png", imageData, width, height);
+
+            int numBins = 5;
+            vector<int> histogram(numBins, 0);
+
+            int binSize = (maxNum / numBins) + 1;
+            for (int count : aabbCollisions)
+            {
+                histogram[count / binSize]++;
+            }
+			for (int i = 0; i < numBins; i++)
+			{
+				printf("Bin %d: %d\n", i, histogram[i]);
+			}
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // 使用 Shader
         shader.use();
 
-        // 传递 Uniform 数据
         shader.SetUniformVec3("camera.position", camera.position);
         shader.SetUniformVec3("camera.forward", camera.forward);
         shader.SetUniformVec3("camera.right", camera.right);
@@ -157,24 +175,12 @@ int main()
         shader.SetUniform1i("triangleCount", model.triangles.size());
         shader.SetUniform1i("bvhCount", flattenedBVH.size());
 
-        // 绘制屏幕平面
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        //glMatrixMode(GL_MODELVIEW);
-        //glLoadIdentity();
-        //gluLookAt(camera.position.x, camera.position.y, camera.position.z, 0.0, 0.0, 0.0,
-        //    camera.worldUp.x, camera.worldUp.y, camera.worldUp.z);
-        //model.DrawWireframe();
-
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
     glfwTerminate();
 }
