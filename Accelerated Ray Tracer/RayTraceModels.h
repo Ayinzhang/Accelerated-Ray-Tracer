@@ -146,7 +146,6 @@ struct Model
 				//vn1 = stoi(s2.substr(s2.find("//") + 2)) - 1;
 				//vn2 = stoi(s3.substr(s3.find("//") + 2)) - 1;
 
-				// 创建三角形
 				triangles.emplace_back(
 					vertices[v0], vertices[v1], vertices[v2]
 					//,normals[vn0] + normals[vn1] + normals[vn2] 

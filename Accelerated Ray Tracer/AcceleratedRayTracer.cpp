@@ -47,7 +47,7 @@ int main()
     Shader shader("VertexShader.glsl", "FragmentShader.glsl");
 
     Model model;
-    if (!model.LoadModel("Bunny_Low.obj")) 
+    if (!model.LoadModel("Bunny_High.obj")) 
     {
         cerr << "Failed to load model" << endl;
         return -1;
@@ -56,7 +56,7 @@ int main()
     auto rootBVH = model.BuildBVH(0, model.triangles.size());
     model.SerializeBVH(flattenedBVH, rootBVH);
 
-    uint VAO, VBO, EBO, UBO, BVHUBO, KDUBO, SSBO, BVHSSBO, CollisionSSBO;
+    uint VAO, VBO, EBO, SSBO, BVHSSBO, CollisionSSBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -67,31 +67,15 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(screenIndices), screenIndices, GL_STATIC_DRAW);
 
-    glGenBuffers(1, &UBO);
-    glBindBuffer(GL_UNIFORM_BUFFER, UBO);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(Triangle) * 1024, NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Triangle) * model.triangles.size(), &model.triangles[0]);
-    uint triIndex = glGetUniformBlockIndex(shader.ID, "TriangleBlock");
-    glUniformBlockBinding(shader.ID, triIndex, 0);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBO);
-
-    glGenBuffers(1, &BVHUBO);
-    glBindBuffer(GL_UNIFORM_BUFFER, BVHUBO);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(FlattenedBVHNode) * 1024, NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(FlattenedBVHNode) * flattenedBVH.size(), &flattenedBVH[0]);
-    uint bvhIndex = glGetUniformBlockIndex(shader.ID, "BVHBlock");
-    glUniformBlockBinding(shader.ID, bvhIndex, 1);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 1, BVHUBO);
-
-    //glGenBuffers(1, &SSBO);
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
-    //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Triangle) * model.triangles.size(), &model.triangles[0], GL_STATIC_DRAW);
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
-    //
-    //glGenBuffers(1, &BVHSSBO);
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, BVHSSBO);
-    //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlattenedBVHNode) * flattenedBVH.size(), &flattenedBVH[0], GL_STATIC_DRAW);
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, BVHSSBO);
+    glGenBuffers(1, &SSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Triangle) * model.triangles.size(), &model.triangles[0], GL_STATIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO);
+    
+    glGenBuffers(1, &BVHSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, BVHSSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlattenedBVHNode) * flattenedBVH.size(), &flattenedBVH[0], GL_STATIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, BVHSSBO);
 
     int pixelCount = width * height;
     glGenBuffers(1, &CollisionSSBO);

@@ -12,10 +12,8 @@ struct FlattenedBVHNode { int left, right, count; vec3 aabbMin, aabbMax; };
 
 uniform Camera camera;
 uniform int triangleCount, bvhCount;
-layout(std140, binding = 0) uniform TriangleBlock{ Triangle triangles[1024]; };
-layout(std140, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[1024]; };
-//layout(std430, binding = 0) uniform TriangleBlock{ Triangle triangles[]; };
-//layout(std430, binding = 1) uniform BVHBlock{ FlattenedBVHNode bvhNodes[];};
+layout(std430, binding = 0) buffer TriangleBlock{ Triangle triangles[]; };
+layout(std430, binding = 1) buffer BVHBlock{ FlattenedBVHNode bvhNodes[];};
 layout(std430, binding = 2) buffer AABBIntersectionBuffer { int aabbCollisionCounts[]; };
 
 Ray CreateRay(vec3 o, vec3 d)

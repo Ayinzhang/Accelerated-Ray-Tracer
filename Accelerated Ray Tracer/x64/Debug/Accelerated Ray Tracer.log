@@ -8,18 +8,17 @@ E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(124,25): warni
 E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(124,30): warning C4101: “vn2”: 未引用的局部变量
   (编译源文件“AcceleratedRayTracer.cpp”)
   
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(284,62): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(283,62): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
   (编译源文件“AcceleratedRayTracer.cpp”)
   
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(285,56): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(284,56): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
   (编译源文件“AcceleratedRayTracer.cpp”)
   
 E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(56,58): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(175,66): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(176,58): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(59,51): warning C4101: “BVHSSBO”: 未引用的局部变量
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(59,38): warning C4101: “KDUBO”: 未引用的局部变量
-E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(59,45): warning C4101: “SSBO”: 未引用的局部变量
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(169,66): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(170,58): warning C4267: “参数”: 从“size_t”转换到“int”，可能丢失数据
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(59,25): warning C4101: “UBO”: 未引用的局部变量
+E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\AcceleratedRayTracer.cpp(59,30): warning C4101: “BVHUBO”: 未引用的局部变量
 D:\Visual Studio\VC\Tools\MSVC\14.43.34618\include\utility(274,54): warning C4267: “初始化”: 从“size_t”转换到“_Ty2”，可能丢失数据
 D:\Visual Studio\VC\Tools\MSVC\14.43.34618\include\utility(274,54): warning C4267:         with
 D:\Visual Studio\VC\Tools\MSVC\14.43.34618\include\utility(274,54): warning C4267:         [
@@ -28,15 +27,14 @@ D:\Visual Studio\VC\Tools\MSVC\14.43.34618\include\utility(274,54): warning C426
   (编译源文件“AcceleratedRayTracer.cpp”)
       D:\Visual Studio\VC\Tools\MSVC\14.43.34618\include\utility(274,54):
       模板实例化上下文(最早的实例化上下文)为
-          E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(303,28):
+          E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(302,28):
           查看对正在编译的函数 模板 实例化“std::pair<BVHNode *,int>::pair<BVHNode*&,unsigned __int64,0>(_Other1,_Other2 &&) noexcept”的引用
           with
           [
               _Other1=BVHNode *&,
               _Other2=unsigned __int64
           ]
-              E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(303,27):
+              E:\Accelerated-Ray-Tracer\Accelerated Ray Tracer\RayTraceModels.h(302,27):
               请参阅 "Model::SerializeBVH" 中对 "std::pair<BVHNode *,int>::pair" 的第一个引用
   
-glew32sd.lib(glew.obj) : warning LNK4099: 未找到 PDB“”(使用“glew32sd.lib(glew.obj)”或在“”中寻找)；正在链接对象，如同没有调试信息一样
   Accelerated Ray Tracer.vcxproj -> E:\Accelerated-Ray-Tracer\x64\Debug\Accelerated Ray Tracer.exe
